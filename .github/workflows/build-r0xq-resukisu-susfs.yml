@@ -337,6 +337,30 @@ jobs:
           EOF
           echo "[+] Kernel name -ResukiSU, KALLSYMS enabled."
 
+      - name: Fix line endings (CRLF -> LF)
+        run: |
+          python3 - <<'PYEOF'
+          import os
+          fixed = 0
+          for root, dirs, files in os.walk('.'):
+              dirs[:] = [d for d in dirs if d not in ('.git', 'out')]
+              for name in files:
+                  p = os.path.join(root, name)
+                  try:
+                      with open(p, 'rb') as fh:
+                          data = fh.read()
+                  except (OSError, PermissionError):
+                      continue
+                  if b'\x00' in data:
+                      continue
+                  if b'\r\n' not in data:
+                      continue
+                  with open(p, 'wb') as fh:
+                      fh.write(data.replace(b'\r\n', b'\n'))
+                  fixed += 1
+          print(f'[+] {fixed} files CRLF -> LF')
+          PYEOF
+
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.22
         with:
