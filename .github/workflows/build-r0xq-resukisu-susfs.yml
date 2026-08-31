@@ -270,6 +270,41 @@ jobs:
           if grep -q "THREAD_INFO_IN_TASK" drivers/kernelsu/Kconfig 2>/dev/null; then
             echo "CONFIG_THREAD_INFO_IN_TASK=y" >> $CFG
           fi
+          # Buat stub kosong utk semua fw-external yg config-nya aktif tapi blob
+          # vendor tak ada di repo. Kalau ngga, kernel build gagal 'No rule to
+          # make target firmware/<dir>/<file>.bin'. Driver dapat firmware kosong
+          # -> probe fail aman, kernel tetap build & boot.
+          python3 - <<'PYEOF'
+          import os, re, glob
+          CFG = "arch/${{ env.KERNEL_ARCH }}/configs/${{ env.DEFCONFIG_NAME }}"
+          cfg_on = set()
+          if os.path.exists(CFG):
+              for line in open(CFG, encoding="utf-8", errors="ignore"):
+                  m = re.match(r'^CONFIG_([A-Za-z0-9_]+)=y\s*$', line)
+                  if m:
+                      cfg_on.add(m.group(1))
+          fwm = "firmware/Makefile"
+          count = 0
+          if os.path.exists(fwm):
+              for line in open(fwm, encoding="utf-8", errors="ignore"):
+                  m = re.match(r'^fw-external-\$\(CONFIG_([A-Za-z0-9_]+)\)\s*\+=\s*(.*)$', line)
+                  if not m:
+                      continue
+                  name = m.group(1)
+                  if name not in cfg_on:
+                      continue
+                  for tok in re.split(r'\s+', m.group(2).strip()):
+                      if not tok or not tok.endswith('.bin'):
+                          continue
+                      p = os.path.join("firmware", tok)
+                      if os.path.exists(p):
+                          continue
+                      os.makedirs(os.path.dirname(p), exist_ok=True)
+                      open(p, "w").close()
+                      count += 1
+                      print("   stub: " + p)
+          print(f'[+] {count} empty firmware stubs dibuat')
+          PYEOF
           # Fallback: kalau UH/KDP/RKP tetap ter-select oleh Kconfig lain,
           # nonaktifkan #error di kernel_compat.h supaya compile tak mati.
           python3 - <<'PYEOF'
