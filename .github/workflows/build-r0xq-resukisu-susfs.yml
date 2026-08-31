@@ -459,15 +459,21 @@ jobs:
           #include <linux/fs.h>
           #include <linux/mount.h>
 
+          /* struct mount didefinisikan internal di fs/mount.h (tak lengkap di sini) */
+          struct mount;
+
           /* Samsung global: 1 = display ON (hid LED worker) */
           __attribute__((weak)) bool lcd_is_on = true;
           EXPORT_SYMBOL(lcd_is_on);
 
-          /* SUSFS devfs mnt helpers (fallback bila tak ter-build di susfs.c) */
+          /* SUSFS devfs mnt helper (fallback bila tak ter-build di susfs.c).
+             Tanda tangan harus match pemanggil; body tak deref struct mount
+             (tipe incomplete), cukup beri nilai default. */
           __attribute__((weak)) int
           susfs_get_non_sus_mnt_id_from_mnt(struct mount *orig_mnt)
           {
-              return orig_mnt ? orig_mnt->mnt_id : 0;
+              (void)orig_mnt;
+              return 0;
           }
 
           __attribute__((weak)) struct vfsmount *
