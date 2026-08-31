@@ -447,6 +447,45 @@ jobs:
             echo "   patched: $f"
           done
 
+      - name: Fix link-time undefined symbols (build shim)
+        run: |
+          # fs/susfs.o kadang tak include definisi susfs_get_non_sus_* (guard
+          # CONFIG_KSU_SUSFS_SUS_MOUNT mismatch krn source Samsung beda) dan
+          # 'lcd_is_on' tak di-build. Semuanya didefinisikan ulang sbg WEAK
+          # symbol, jadi kalau definisi kuat sudah ada di source lain, weak
+          # diabaikan (tak duplikat); kalau tak ada, shim mengisi -> link lolos.
+          cat > fs/susfs_shim.c <<'EOF'
+          #include <linux/module.h>
+          #include <linux/fs.h>
+          #include <linux/mount.h>
+
+          /* Samsung global: 1 = display ON (hid LED worker) */
+          __attribute__((weak)) bool lcd_is_on = true;
+          EXPORT_SYMBOL(lcd_is_on);
+
+          /* SUSFS devfs mnt helpers (fallback bila tak ter-build di susfs.c) */
+          __attribute__((weak)) int
+          susfs_get_non_sus_mnt_id_from_mnt(struct mount *orig_mnt)
+          {
+              return orig_mnt ? orig_mnt->mnt_id : 0;
+          }
+
+          __attribute__((weak)) struct vfsmount *
+          susfs_get_non_sus_vfsmnt_from_vfsmnt(struct vfsmount *vfsmnt)
+          {
+              if (!vfsmnt)
+                  return NULL;
+              mntget(vfsmnt);
+              if (vfsmnt->mnt_root)
+                  dget(vfsmnt->mnt_root);
+              return vfsmnt;
+          }
+          EOF
+          if ! grep -q "susfs_shim.o" fs/Makefile; then
+            echo "obj-y += susfs_shim.o" >> fs/Makefile
+          fi
+          echo "[+] susfs_shim.o terpasang ke fs/Makefile"
+
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.22
         with:
