@@ -16,7 +16,8 @@ env:
   EXTRA_CMDS: "LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++ KCFLAGS=-Wno-strict-prototypes"
 
   CLANG_URL: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r365631c.tar.gz"
-  GCC_URL: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/android12L-release.tar.gz"
+  GCC_URL: "https://github.com/ravindu644/aarch64-linux-android-4.9.git"
+  GCC_BRANCH: "master"
 
   AK3_SOURCE: "https://github.com/osm0sis/AnyKernel3.git"
   AK3_BRANCH: "master"
@@ -99,28 +100,12 @@ jobs:
 
       - name: Get aarch64 GCC 4.9 (symlink to androidkernel prefix)
         run: |
-          curl -L -o gcc.tar.gz "${{ env.GCC_URL }}"
-          mkdir -p google
-          tar -C google -zxf gcc.tar.gz
-          # AOSP 4.9 tarball punya 2 slot bin:
-          #   google/bin/                       -> aarch64-linux-android-* (prefixed)
-          #   google/aarch64-linux-android/bin/ -> gcc, g++, cpp (no prefix)
-          # Satukan tool tanpa-prefix sbg aarch64-linux-android-*, lalu symlink semuanya
-          # ke prefix aarch64-linux-androidkernel-* (sesuai CROSS_COMPILE di env).
-          mkdir -p google/bin
-          # Tools tanpa prefix (compiler gcc/g++ dll) dari subfolder
-          if [ -d google/aarch64-linux-android/bin ]; then
-            for t in google/aarch64-linux-android/bin/*; do
-              b=$(basename "$t")
-              case "$b" in
-                gcc|g++|cpp|cc1|cc1plus|collect2|as|ld|ld.bfd|ld.gold|ar|ranlib|nm|objcopy|objdump|readelf|strip|addr2line|size|elfedit|dwp|c++filt)
-                  ln -sf "../aarch64-linux-android/bin/$b" "google/bin/aarch64-linux-android-$b"
-                  ;;
-              esac
-            done
-          fi
+          git clone --depth=1 "${{ env.GCC_URL }}" -b "${{ env.GCC_BRANCH }}" google || \
+            git clone --depth=1 "${{ env.GCC_URL }}" google
+          test -x google/bin/aarch64-linux-android-gcc && echo "[+] gcc ada" || { echo "[-] gcc missing"; exit 1; }
+          # Repo ini pakai prefix aarch64-linux-android-*. CROSS_COMPILE user
+          # minta aarch64-linux-androidkernel-*. Buat symlink agar prefix cocok.
           cd google/bin
-          # Buat symlink prefix androidkernel- dari semua aarch64-linux-android-*
           for f in aarch64-linux-android-*; do
             [ -e "$f" ] || continue
             newname="aarch64-linux-androidkernel-${f#aarch64-linux-android-}"
