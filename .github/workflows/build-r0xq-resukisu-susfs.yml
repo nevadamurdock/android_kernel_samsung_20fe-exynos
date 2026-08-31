@@ -42,6 +42,9 @@ jobs:
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
+      PLATFORM_VERSION: "13"
+      ANDROID_MAJOR_VERSION: "T"
+      SEC_BUILD_CONF_VENDOR_BUILD_OS: "13"
 
     steps:
       - name: Checkout kernel source
