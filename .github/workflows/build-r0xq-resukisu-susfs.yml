@@ -15,7 +15,7 @@ env:
   CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-androidkernel-"
   EXTRA_CMDS: "LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++ KCFLAGS=-Wno-strict-prototypes"
 
-  CLANG_URL: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android15-release/clang-r365631c.tar.gz"
+  CLANG_URL: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r365631c.tar.gz"
   GCC_URL: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/android12L-release.tar.gz"
 
   AK3_SOURCE: "https://github.com/osm0sis/AnyKernel3.git"
@@ -86,12 +86,16 @@ jobs:
           curl -L -o clang.tar.gz "${{ env.CLANG_URL }}"
           mkdir -p clang-custom
           tar -C clang-custom -zxf clang.tar.gz
-          SUB=$(find clang-custom -maxdepth 1 -type d -name 'clang-r*' | head -n 1)
-          if [ -n "$SUB" ] && [ ! -d clang-custom/bin ]; then
-            mv "$SUB"/* clang-custom/
-            mv "$SUB"/.* clang-custom/ 2>/dev/null || true
+          # clang-r365631c lama (2020): struktur flat, tanpa subfolder clang-r*
+          if [ ! -x clang-custom/bin/clang ]; then
+            SUB=$(find clang-custom -maxdepth 1 -type d -name 'clang-r*' | head -n 1)
+            if [ -n "$SUB" ]; then
+              mv "$SUB"/* clang-custom/
+              mv "$SUB"/.* clang-custom/ 2>/dev/null || true
+            fi
           fi
           test -x clang-custom/bin/clang && echo "[+] Clang OK" || { echo "[-] clang binary missing"; exit 1; }
+          clang-custom/bin/clang --version | head -2
 
       - name: Get aarch64 GCC 4.9 (symlink to androidkernel prefix)
         run: |
