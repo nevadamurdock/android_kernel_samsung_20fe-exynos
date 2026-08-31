@@ -13,7 +13,7 @@ env:
   DEFCONFIG_NAME: "exynos9830-r8slte_defconfig"
 
   CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-androidkernel-"
-  EXTRA_CMDS: "LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++ KCFLAGS=-Wno-strict-prototypes"
+  EXTRA_CMDS: "LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++ KCFLAGS=\"-Wno-strict-prototypes -Wno-missing-braces\""
 
   CLANG_URL: "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r365631c.tar.gz"
   GCC_URL: "https://github.com/ravindu644/aarch64-linux-android-4.9.git"
@@ -363,6 +363,15 @@ jobs:
                   fixed += 1
           print(f'[+] {fixed} files CRLF -> LF')
           PYEOF
+
+      - name: Fix Samsung FIVE include path + SUSFS braces warnings
+        run: |
+          # FIVE header include absolute-from-root 'security/integrity/integrity.h'
+          # tak resolve di kernel 4.19 O=out. Ubah ke relative path.
+          grep -rl '"security/integrity/integrity.h"' security/samsung/five/ 2>/dev/null | while read -r f; do
+            sed -i 's|"security/integrity/integrity.h"|"../../integrity/integrity.h"|g' "$f"
+            echo "   patched: $f"
+          done
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.22
