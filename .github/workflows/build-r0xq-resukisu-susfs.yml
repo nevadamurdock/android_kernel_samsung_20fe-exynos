@@ -242,6 +242,14 @@ jobs:
           CFG=arch/${{ env.KERNEL_ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           sed -i '/CONFIG_KSU/d' $CFG
           sed -i '/CONFIG_KSU_SUSFS/d' $CFG
+          # Samsung UH/KDP/RKP security bentrok keras dgn KernelSU (kernel_compat.h
+          # #error). Matikan semua utk kernel custom ResukiSU.
+          sed -i '/CONFIG_UH/d' $CFG
+          sed -i '/CONFIG_KDP/d' $CFG
+          sed -i '/CONFIG_RKP/d' $CFG
+          # NPU firmware 'npu/NPU.bin' tak ada di source (vendor-private);
+          # hanya sisakan 'valhall-1691526.wa' yg ada di repo.
+          sed -i '/CONFIG_EXTRA_FIRMWARE=/d' $CFG
           cat <<'EOF' >> $CFG
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS=y
@@ -254,10 +262,31 @@ jobs:
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_KSU_SUSFS_SUS_MAP=y
+          # CONFIG_UH is not set
+          # CONFIG_KDP is not set
+          # CONFIG_RKP is not set
+          CONFIG_EXTRA_FIRMWARE="valhall-1691526.wa"
           EOF
           if grep -q "THREAD_INFO_IN_TASK" drivers/kernelsu/Kconfig 2>/dev/null; then
             echo "CONFIG_THREAD_INFO_IN_TASK=y" >> $CFG
           fi
+          # Fallback: kalau UH/KDP/RKP tetap ter-select oleh Kconfig lain,
+          # nonaktifkan #error di kernel_compat.h supaya compile tak mati.
+          python3 - <<'PYEOF'
+          import re, os
+          p = "drivers/kernelsu/compat/kernel_compat.h"
+          if os.path.exists(p):
+              s = open(p, encoding="utf-8", errors="ignore").read()
+              s2 = re.sub(r'#error\s*"CONFIG_UH[^"]*"(?:[\\]?\s*\n\s*[^\n]*)?',
+                          '/* KernelSU UH/KDP/RKP guard disabled */', s, flags=re.S)
+              if s2 != s:
+                  open(p, "w", encoding="utf-8", newline="\n").write(s2)
+                  print("[+] kernel_compat.h #error disabled")
+              else:
+                  print("[-] pattern tak ditemukan di kernel_compat.h")
+          else:
+              print("[-] kernel_compat.h tak ada")
+          PYEOF
           echo "[+] KSU + SUSFS config appended."
 
       - name: Patch SUSFS v2.2.0 (core untuk kernel 4.19)
