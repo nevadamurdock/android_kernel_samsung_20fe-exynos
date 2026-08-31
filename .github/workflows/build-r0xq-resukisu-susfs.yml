@@ -102,12 +102,31 @@ jobs:
           curl -L -o gcc.tar.gz "${{ env.GCC_URL }}"
           mkdir -p google
           tar -C google -zxf gcc.tar.gz
+          # AOSP 4.9 tarball punya 2 slot bin:
+          #   google/bin/                       -> aarch64-linux-android-* (prefixed)
+          #   google/aarch64-linux-android/bin/ -> gcc, g++, cpp (no prefix)
+          # Satukan tool tanpa-prefix sbg aarch64-linux-android-*, lalu symlink semuanya
+          # ke prefix aarch64-linux-androidkernel-* (sesuai CROSS_COMPILE di env).
+          mkdir -p google/bin
+          # Tools tanpa prefix (compiler gcc/g++ dll) dari subfolder
+          if [ -d google/aarch64-linux-android/bin ]; then
+            for t in google/aarch64-linux-android/bin/*; do
+              b=$(basename "$t")
+              case "$b" in
+                gcc|g++|cpp|cc1|cc1plus|collect2|as|ld|ld.bfd|ld.gold|ar|ranlib|nm|objcopy|objdump|readelf|strip|addr2line|size|elfedit|dwp|c++filt)
+                  ln -sf "../aarch64-linux-android/bin/$b" "google/bin/aarch64-linux-android-$b"
+                  ;;
+              esac
+            done
+          fi
           cd google/bin
+          # Buat symlink prefix androidkernel- dari semua aarch64-linux-android-*
           for f in aarch64-linux-android-*; do
+            [ -e "$f" ] || continue
             newname="aarch64-linux-androidkernel-${f#aarch64-linux-android-}"
             ln -sf "$f" "$newname"
           done
-          ls -la aarch64-linux-androidkernel-* | head -5
+          ls aarch64-linux-androidkernel-gcc aarch64-linux-androidkernel-g++ 2>/dev/null
           test -x aarch64-linux-androidkernel-gcc && echo "[+] aarch64 GCC OK" || { echo "[-] aarch64 GCC not found"; exit 1; }
 
       - name: Get AnyKernel3
