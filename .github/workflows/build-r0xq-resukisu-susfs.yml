@@ -366,10 +366,15 @@ jobs:
 
       - name: Fix Samsung FIVE include path + SUSFS braces warnings
         run: |
-          # FIVE header include absolute-from-root 'security/integrity/integrity.h'
-          # tak resolve di kernel 4.19 O=out. Ubah ke relative path.
+          # FIVE headers include absolute-from-root yg tak resolve di kernel O=out.
+          # Ubah ke path relatif dari security/samsung/five/.
           grep -rl '"security/integrity/integrity.h"' security/samsung/five/ 2>/dev/null | while read -r f; do
             sed -i 's|"security/integrity/integrity.h"|"../../integrity/integrity.h"|g' "$f"
+            echo "   patched: $f"
+          done
+          # five_dmverity.c: drivers/md/dm.h -> ../../../drivers/md/dm.h
+          grep -rl '"drivers/md/dm.h"' security/samsung/five/ 2>/dev/null | while read -r f; do
+            sed -i 's|"drivers/md/dm.h"|"../../../drivers/md/dm.h"|g' "$f"
             echo "   patched: $f"
           done
 
