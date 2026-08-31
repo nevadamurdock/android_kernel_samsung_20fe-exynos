@@ -294,7 +294,7 @@ jobs:
                   if name not in cfg_on:
                       continue
                   for tok in re.split(r'\s+', m.group(2).strip()):
-                      if not tok or not tok.endswith('.bin'):
+                      if not tok:
                           continue
                       p = os.path.join("firmware", tok)
                       if os.path.exists(p):
