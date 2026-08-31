@@ -377,6 +377,11 @@ jobs:
             sed -i 's|"drivers/md/dm.h"|"../../../drivers/md/dm.h"|g' "$f"
             echo "   patched: $f"
           done
+          # five_dmverity.c: drivers/block/loop.h -> ../../../drivers/block/loop.h
+          grep -rl '"drivers/block/loop.h"' security/samsung/five/ 2>/dev/null | while read -r f; do
+            sed -i 's|"drivers/block/loop.h"|"../../../drivers/block/loop.h"|g' "$f"
+            echo "   patched: $f"
+          done
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2.22
